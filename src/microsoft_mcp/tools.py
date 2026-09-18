@@ -633,6 +633,37 @@ def update_event(
 
 
 @mcp.tool
+def delete_event(event_id: str) -> dict[str, Any]:
+    """Delete a calendar event.
+
+    Permanently removes an event from the user's calendar. If the event is a meeting
+    with other attendees, Microsoft Graph cancels it and notifies them on delete. Use
+    this only after the user has confirmed removal — it cannot be undone via the API.
+
+    Args:
+        event_id: Unique identifier of the calendar event to delete (from list_events,
+            get_event, or search_events)
+
+    Returns:
+        {"status": "deleted", "event_id": event_id} on success.
+
+    Examples:
+        - delete_event("AAMkAD...")
+    """
+    logger.info(f"delete_event called: event_id={event_id}")
+
+    try:
+        graph.request("DELETE", f"/me/events/{event_id}")
+        logger.info(f"delete_event successful: deleted event {event_id}")
+        return {"status": "deleted", "event_id": event_id}
+    except Exception as e:
+        logger.error(
+            f"delete_event failed for event_id={event_id}: {str(e)}", exc_info=True
+        )
+        raise
+
+
+@mcp.tool
 def check_availability(
     start: str,
     end: str,
