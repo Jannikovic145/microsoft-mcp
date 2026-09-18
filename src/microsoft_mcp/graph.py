@@ -35,6 +35,7 @@ def request(
     data: bytes | None = None,
     max_retries: int = 3,
     auth: Optional[AzureAuthentication] = None,
+    outlook_timezone: str | None = None,
 ) -> dict[str, Any] | None:
     auth_instance = auth or get_auth_instance()
     headers = {
@@ -50,6 +51,15 @@ def request(
         headers["Content-Type"] = (
             "application/json" if json else "application/octet-stream"
         )
+
+    if outlook_timezone:
+        # Graph returns event start/end in UTC by default; this Prefer preference makes it
+        # convert server-side instead, so callers never hand-roll UTC<->local arithmetic.
+        # Appended (not assigned) so it composes with the body-content-type preference above
+        # instead of clobbering it when both apply to the same request.
+        prefs = [headers["Prefer"]] if "Prefer" in headers else []
+        prefs.append(f'outlook.timezone="{outlook_timezone}"')
+        headers["Prefer"] = ", ".join(prefs)
 
     if params and (
         "$search" in params
@@ -106,6 +116,7 @@ def request_paginated(
     params: dict[str, Any] | None = None,
     limit: int | None = None,
     auth: Optional[AzureAuthentication] = None,
+    outlook_timezone: str | None = None,
 ) -> Iterator[dict[str, Any]]:
     """Make paginated requests following @odata.nextLink"""
     items_returned = 0
@@ -113,9 +124,10 @@ def request_paginated(
 
     while True:
         if next_link:
-            result = request("GET", next_link.replace(BASE_URL, ""), auth=auth)
+            result = request("GET", next_link.replace(BASE_URL, ""), auth=auth,
+                              outlook_timezone=outlook_timezone)
         else:
-            result = request("GET", path, params=params, auth=auth)
+            result = request("GET", path, params=params, auth=auth, outlook_timezone=outlook_timezone)
 
         if not result:
             break
@@ -301,6 +313,7 @@ def search_query(
     limit: int = 50,
     fields: list[str] | None = None,
     auth: Optional[AzureAuthentication] = None,
+    outlook_timezone: str | None = None,
 ) -> Iterator[dict[str, Any]]:
     """Use the modern /search/query API endpoint"""
     # Validate entity types - Microsoft Graph search has specific requirements
@@ -356,7 +369,8 @@ def search_query(
 
     while True:
         try:
-            result = request("POST", "/search/query", json=payload, auth=auth)
+            result = request("POST", "/search/query", json=payload, auth=auth,
+                              outlook_timezone=outlook_timezone)
 
             if not result or "value" not in result:
                 break

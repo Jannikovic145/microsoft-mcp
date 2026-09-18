@@ -52,6 +52,12 @@ auth = AzureAuthentication(
 # Set the auth instance for the graph module
 graph.set_auth_instance(auth)
 
+# Graph returns calendar times in UTC by default; calendar read tools ask it to convert
+# server-side (Prefer: outlook.timezone) to this zone instead, so callers get event times
+# already in local time and never hand-roll UTC<->local arithmetic. Override via env for a
+# different install.
+CALENDAR_TIMEZONE = os.getenv("MICROSOFT_MCP_CALENDAR_TIMEZONE", "W. Europe Standard Time")
+
 markitdown = MarkItDown(enable_builtins=True)
 
 FOLDERS = {
@@ -394,7 +400,8 @@ def list_events(
 
     Returns:
         List of calendar event objects containing:
-        - Basic info: id, subject, start/end times, location, organizer (note: All times are in UTC time zone and may require conversion)
+        - Basic info: id, subject, start/end times, location, organizer (times are already
+          converted server-side to the CALENDAR_TIMEZONE local zone — use as-is, do not convert)
         - Details (if include_details=True): body, attendees list, recurrence info, online meeting links
         - Recurring events: individual instances with seriesMasterId for the recurring series
 
@@ -428,7 +435,9 @@ def list_events(
             params["$select"] = "id,subject,start,end,location,organizer,seriesMasterId"
 
         # Use calendarView to get recurring event instances
-        events = list(graph.request_paginated("/me/calendarView", params=params))
+        events = list(graph.request_paginated(
+            "/me/calendarView", params=params, outlook_timezone=CALENDAR_TIMEZONE
+        ))
 
         # truncate the body content if it exceeds max_body_length
         for event in events:
@@ -476,7 +485,9 @@ def get_event(event_id: str) -> dict[str, Any]:
     logger.info(f"get_event called: event_id={event_id}")
 
     try:
-        result = graph.request("GET", f"/me/events/{event_id}")
+        result = graph.request(
+            "GET", f"/me/events/{event_id}", outlook_timezone=CALENDAR_TIMEZONE
+        )
         if not result:
             logger.error(f"get_event failed: Event with ID {event_id} not found")
             raise ValueError(f"Event with ID {event_id} not found")
@@ -1633,7 +1644,9 @@ def search_events(
     logger.info(f"search_events called: query='{query}', limit={limit}")
 
     try:
-        events = list(graph.search_query(query, ["event"], limit))
+        events = list(graph.search_query(
+            query, ["event"], limit, outlook_timezone=CALENDAR_TIMEZONE
+        ))
 
         logger.info(
             f"search_events successful: found {len(events)} events matching '{query}'"
