@@ -154,7 +154,7 @@ def main():
     print("• User.Read - Read user profile")
     print("• User.ReadBasic.All - Read basic info of all users")
     print("• Chat.Read - Read chat messages")
-    print("• Mail.Read - Read emails")
+    print("• Mail.ReadWrite - Read and write emails (incl. creating drafts)")
     print("• Team.ReadBasic.All - Read basic team information")
     print("• TeamMember.ReadWrite.All - Read and write team membership")
     print("• Calendars.Read - Access calendars")

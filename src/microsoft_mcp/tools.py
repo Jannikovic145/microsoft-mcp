@@ -382,6 +382,63 @@ def get_email(
 
 
 @mcp.tool
+def create_draft(
+    subject: str,
+    body: str,
+    to_recipients: str | list[str],
+) -> dict[str, Any]:
+    """Create a draft email in the user's Drafts folder.
+
+    Creates a new message with isDraft set, without sending it. The draft appears in
+    Outlook's "Drafts" folder for the user to review, edit, and send manually. Use this
+    instead of any send-mail action whenever a human should review the message before
+    it goes out — e.g. customer-facing or sales emails.
+
+    Args:
+        subject: Subject line of the draft
+        body: Plain-text body content of the draft
+        to_recipients: Email address or list of email addresses for the "To" field
+
+    Returns:
+        The created draft message object as returned by Microsoft Graph, including its id.
+
+    Examples:
+        - create_draft("Follow-up", "Thanks for the call today...", "kunde@example.com")
+        - create_draft("Angebot", body_text, ["a@example.com", "b@example.com"])
+    """
+    logger.info(
+        f"create_draft called: subject='{subject}', to_recipients={to_recipients}"
+    )
+
+    try:
+        recipients_list = (
+            [to_recipients] if isinstance(to_recipients, str) else to_recipients
+        )
+
+        message: dict[str, Any] = {
+            "subject": subject,
+            "body": {"contentType": "Text", "content": body},
+            "toRecipients": [
+                {"emailAddress": {"address": r}} for r in recipients_list
+            ],
+            "isDraft": True,
+        }
+
+        result = graph.request("POST", "/me/messages", json=message)
+        if not result:
+            logger.error("create_draft failed: no response from server")
+            raise ValueError("Failed to create draft")
+
+        logger.info(
+            f"create_draft successful: created draft with ID {result.get('id')}"
+        )
+        return result
+    except Exception as e:
+        logger.error(f"create_draft failed: {str(e)}", exc_info=True)
+        raise
+
+
+@mcp.tool
 def list_events(
     days_ahead: int = 7,
     days_back: int = 0,

@@ -27,7 +27,7 @@ Delegated Permissions Used:
 - User.Read: Read the signed-in user's profile
 - User.ReadBasic.All: Read basic info of all users
 - Chat.Read: Read user's chat messages
-- Mail.Read: Read user's mail
+- Mail.ReadWrite: Read and write user's mail (incl. creating drafts)
 - Team.ReadBasic.All: Read basic team information
 - TeamMember.ReadWrite.All: Read and write team membership
 - Calendars.Read: Read user's calendar
@@ -65,7 +65,7 @@ SCOPES = [
     "User.Read",
     "User.ReadBasic.All",
     "Chat.Read",
-    "Mail.Read",
+    "Mail.ReadWrite",
     "Team.ReadBasic.All",
     "TeamMember.ReadWrite.All",
     "Calendars.ReadWrite",
