@@ -679,17 +679,19 @@ def check_availability(
     start: str,
     end: str,
     attendees: str | list[str] | None = None,
+    timezone: str = "UTC",
 ) -> dict[str, Any]:
     """Check calendar availability for the user and optionally other attendees within a time range.
 
     Determines free/busy status to help schedule meetings. Shows when people are available,
     busy, or tentatively booked. Useful for finding meeting times that work for everyone.
-    All times are in UTC time zone and may require conversion.
 
     Args:
-        start: Start time in ISO format (e.g., "2024-09-02T09:00:00Z" or "2024-09-02T09:00:00")
-        end: End time in ISO format
+        start: Start date/time in ISO 8601 format, interpreted in `timezone` (e.g. "2026-09-20T09:00:00")
+        end: End date/time in ISO 8601 format, interpreted in `timezone`
         attendees: Email address(es) of other people to check (optional). Can be single email or list
+        timezone: IANA/Windows timezone name applied to start/end (default "UTC") — pass local
+            time here and set this, same as create_event/update_event; do not convert manually
 
     Returns:
         Availability information containing:
@@ -700,12 +702,12 @@ def check_availability(
           each number represents a 30-minute interval within the specified time range, starting from the start time.
 
     Examples:
-        - check_availability("2024-09-02T14:00:00Z", "2024-09-02T15:00:00Z") - Check your availability
+        - check_availability("2026-09-20T14:00:00", "2026-09-20T15:00:00", timezone="W. Europe Standard Time")
         - check_availability(start, end, "colleague@company.com") - Check you + one person
         - check_availability(start, end, ["person1@co.com", "person2@co.com"]) - Check multiple people
     """
     logger.info(
-        f"check_availability called: start={start}, end={end}, attendees={attendees}"
+        f"check_availability called: start={start}, end={end}, attendees={attendees}, timezone={timezone}"
     )
 
     try:
@@ -722,8 +724,8 @@ def check_availability(
 
         payload = {
             "schedules": schedules,
-            "startTime": {"dateTime": start, "timeZone": "UTC"},
-            "endTime": {"dateTime": end, "timeZone": "UTC"},
+            "startTime": {"dateTime": start, "timeZone": timezone},
+            "endTime": {"dateTime": end, "timeZone": timezone},
             "availabilityViewInterval": 30,
         }
 
