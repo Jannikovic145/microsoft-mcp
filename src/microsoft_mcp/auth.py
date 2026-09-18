@@ -6,14 +6,14 @@ Delegated access allows the application to act on behalf of a signed-in user,
 accessing only the data that the user has permission to access.
 
 Key Features:
-- Uses azure.identity.InteractiveBrowserCredential for modern authentication
+- Uses azure.identity.DeviceCodeCredential for modern authentication
 - Leverages Azure SDK's built-in token caching and refresh token handling
 - Uses AuthenticationRecord for persistent authentication across sessions
 - No manual token management or background refresh services needed
 - Works seamlessly with msgraph.GraphServiceClient
 
 Authentication Flow:
-- Uses InteractiveBrowserCredential with persistent token cache
+- Uses DeviceCodeCredential with persistent token cache
 - First authentication saves an AuthenticationRecord to ~/.azure-graph-auth.json
 - Subsequent runs use the saved AuthenticationRecord for silent authentication
 - Azure SDK handles all token refresh automatically
@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 from azure.identity import (
-    InteractiveBrowserCredential,
+    DeviceCodeCredential,
     TokenCachePersistenceOptions,
     AuthenticationRecord,
 )
@@ -68,7 +68,7 @@ SCOPES = [
     "Mail.Read",
     "Team.ReadBasic.All",
     "TeamMember.ReadWrite.All",
-    "Calendars.Read",
+    "Calendars.ReadWrite",
     "Files.Read",
     "Chat.Read",
     "ChannelMessage.Read.All",
@@ -155,9 +155,9 @@ class AzureAuthentication:
         except Exception as e:
             logger.warning(f"Failed to write AuthenticationRecord: {e}")
 
-    def get_credential(self) -> InteractiveBrowserCredential:
+    def get_credential(self) -> DeviceCodeCredential:
         """
-        Create and configure InteractiveBrowserCredential for delegated access.
+        Create and configure DeviceCodeCredential for delegated access.
         Uses persistent token cache and AuthenticationRecord for seamless re-authentication.
         """
         # Return existing instance if available
@@ -165,7 +165,7 @@ class AzureAuthentication:
             logger.info("Returning existing credential instance")
             return self._credential_instance
 
-        logger.info("Creating InteractiveBrowserCredential for delegated access")
+        logger.info("Creating DeviceCodeCredential for delegated access")
 
         client_id = os.getenv("MICROSOFT_MCP_CLIENT_ID")
         if not client_id:
@@ -202,8 +202,8 @@ class AzureAuthentication:
         if redirect_uri:
             credential_kwargs["redirect_uri"] = redirect_uri
 
-        self._credential_instance = InteractiveBrowserCredential(**credential_kwargs)
-        logger.info("InteractiveBrowserCredential created successfully")
+        self._credential_instance = DeviceCodeCredential(**credential_kwargs)
+        logger.info("DeviceCodeCredential created successfully")
 
         return self._credential_instance
 

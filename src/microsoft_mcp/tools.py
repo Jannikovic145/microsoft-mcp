@@ -491,6 +491,148 @@ def get_event(event_id: str) -> dict[str, Any]:
 
 
 @mcp.tool
+def create_event(
+    subject: str,
+    start: str,
+    end: str,
+    location: str | None = None,
+    body: str | None = None,
+    attendees: str | list[str] | None = None,
+    categories: list[str] | None = None,
+    timezone: str = "UTC",
+) -> dict[str, Any]:
+    """Create a new calendar event.
+
+    Creates a calendar event with the given subject, time range, and optional details.
+    Use this to schedule meetings or add entries to the calendar.
+
+    Args:
+        subject: Title of the event
+        start: Start date/time in ISO 8601 format (e.g. "2026-09-20T10:00:00")
+        end: End date/time in ISO 8601 format (e.g. "2026-09-20T11:00:00")
+        location: Optional display name of the event location
+        body: Optional plain-text description/notes for the event
+        attendees: Optional email address or list of email addresses to invite
+        categories: Optional list of category names to tag the event with (must match
+            entries in the user's Outlook master category list to show a color)
+        timezone: IANA/Windows timezone name applied to start/end (default "UTC")
+
+    Returns:
+        The created event object as returned by Microsoft Graph, including its id.
+
+    Examples:
+        - create_event("Team sync", "2026-09-20T10:00:00", "2026-09-20T11:00:00")
+        - create_event("Review", start, end, categories=["Work", "Important"])
+    """
+    logger.info(
+        f"create_event called: subject='{subject}', start={start}, end={end}, location={location}, attendees={attendees}, categories={categories}, timezone={timezone}"
+    )
+
+    try:
+        event: dict[str, Any] = {
+            "subject": subject,
+            "start": {"dateTime": start, "timeZone": timezone},
+            "end": {"dateTime": end, "timeZone": timezone},
+        }
+
+        if location:
+            event["location"] = {"displayName": location}
+
+        if body:
+            event["body"] = {"contentType": "Text", "content": body}
+
+        if attendees:
+            attendees_list = [attendees] if isinstance(attendees, str) else attendees
+            event["attendees"] = [
+                {"emailAddress": {"address": a}, "type": "required"}
+                for a in attendees_list
+            ]
+            logger.info(f"create_event: added {len(attendees_list)} attendees")
+
+        if categories:
+            event["categories"] = categories
+
+        result = graph.request("POST", "/me/events", json=event)
+        if not result:
+            logger.error("create_event failed: no response from server")
+            raise ValueError("Failed to create event")
+
+        logger.info(
+            f"create_event successful: created event with ID {result.get('id')}"
+        )
+        return result
+    except Exception as e:
+        logger.error(f"create_event failed: {str(e)}", exc_info=True)
+        raise
+
+
+@mcp.tool
+def update_event(
+    event_id: str,
+    subject: str | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    location: str | None = None,
+    body: str | None = None,
+    categories: list[str] | None = None,
+    timezone: str = "UTC",
+) -> dict[str, Any]:
+    """Update properties of an existing calendar event.
+
+    Modifies subject, time, location, body, or categories of an event. Only fields
+    explicitly provided are changed; omitted fields are left untouched. Use this to
+    reschedule or edit an event found via list_events, get_event, or search_events.
+
+    Args:
+        event_id: Unique identifier of the calendar event to update
+        subject: New title for the event
+        start: New start date/time in ISO 8601 format
+        end: New end date/time in ISO 8601 format
+        location: New display name of the event location
+        body: New plain-text description/notes for the event
+        categories: New list of category names to tag the event with (replaces the
+            event's existing categories entirely; pass the full desired list)
+        timezone: IANA/Windows timezone name applied to start/end when provided (default "UTC")
+
+    Returns:
+        The updated event object as returned by Microsoft Graph.
+
+    Examples:
+        - update_event("AAMkAD...", subject="Renamed meeting")
+        - update_event("AAMkAD...", start="2026-09-20T14:00:00", end="2026-09-20T15:00:00")
+        - update_event("AAMkAD...", categories=["Personal"])
+    """
+    logger.info(
+        f"update_event called: event_id={event_id}, subject={subject}, start={start}, end={end}, location={location}, categories={categories}"
+    )
+
+    try:
+        updates: dict[str, Any] = {}
+
+        if subject is not None:
+            updates["subject"] = subject
+        if start is not None:
+            updates["start"] = {"dateTime": start, "timeZone": timezone}
+        if end is not None:
+            updates["end"] = {"dateTime": end, "timeZone": timezone}
+        if location is not None:
+            updates["location"] = {"displayName": location}
+        if body is not None:
+            updates["body"] = {"contentType": "Text", "content": body}
+        if categories is not None:
+            updates["categories"] = categories
+
+        result = graph.request("PATCH", f"/me/events/{event_id}", json=updates)
+        logger.info(f"update_event successful: updated event {event_id}")
+        return result or {"status": "updated"}
+    except Exception as e:
+        logger.error(
+            f"update_event failed for event_id={event_id}: {str(e)}", exc_info=True
+        )
+        raise
+
+
+@mcp.tool
 def check_availability(
     start: str,
     end: str,
